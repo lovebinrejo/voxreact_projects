@@ -1,51 +1,438 @@
-.invoice-header h1 {
-  color: #0b2a5b;
-  font-size: 32px;
-  font-weight: 700;
+/* ── PAGE WRAPPER ── */
+.invoice-page {
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  color: #333;
+  background: #fff;
+  min-height: 100vh;
 }
 
-.cart-icon {
-  color: #0b2a5b;
-  font-size: 24px;
-  margin-right: 8px;
-}
+/* ── HEADER: title on left, New Sale button on right ── */
 .invoice-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 20px;
+  padding: 12px 24px;
+  border-bottom: 1px solid #e0e0e0;
 }
 
-.title-section {
+.invoice-title {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a2e5a;
+  margin: 0;
 }
 
 .cart-icon {
-  color: #0b2a5b;
-  font-size: 22px;
+  font-size: 18px;
+  color: #1a2e5a;
 }
 
-.title-section h1 {
-  margin: 0;
-  color: #0b2a5b;
-  font-size: 28px;
-}
-
+/* New Sale button: gray background, small blue circle dot */
 .new-sale-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  background-color: #e9eaec;
-  color: rgb(88, 79, 79);
+  background: #f0f0f0;
+  color: #555;
+  border: 1px solid #ddd;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.dot-icon {
+  color: #1565c0;
+  font-size: 10px;
+}
+
+/* ── BODY: all form sections get padding ── */
+.invoice-body {
+  padding: 16px 24px;
+}
+
+/* ── FORM SECTIONS: spacing between each section ── */
+.form-section {
+  margin-bottom: 16px;
+}
+
+/* ── FIELD: label + input/select stacked vertically ── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Full-width field stretches across the whole row */
+.full-width {
+  width: 100%;
+}
+
+/* ── REQUIRED LABEL: red color for required fields ── */
+.label-required {
+  color: #e53935;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.label-required span {
+  margin-left: 1px;
+}
+
+/* Regular label */
+.field label {
+  font-size: 13px;
+  color: #555;
+  font-weight: 500;
+}
+
+/* ── ALL INPUTS, SELECTS, TEXTAREAS ── */
+.invoice-page input,
+.invoice-page select,
+.invoice-page textarea {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #333;
+  background: #fff;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.invoice-page input:focus,
+.invoice-page select:focus,
+.invoice-page textarea:focus {
+  border-color: #1565c0;
+}
+
+.invoice-page textarea {
+  resize: vertical;
+  min-height: 48px;
+}
+
+/* ── "Now" link below date fields ── */
+.now-link {
+  font-size: 12px;
+  color: #1565c0;
+  cursor: pointer;
+}
+
+/* ── 3-COLUMN GRID ROW ── */
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+/* ── 2-COLUMN GRID ROW ── */
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+/* ── ITEM TABLE SECTION ── */
+.item-table-section {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+/* Header row: "Item Table" title + barcode input */
+.item-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.item-table-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.barcode-input {
+  width: 220px !important;
+  font-size: 12px;
+}
+
+/* ── TABLE STYLES ── */
+.item-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.item-table th {
+  background: #f5f5f5;
+  text-align: center;
+  padding: 6px 8px;
+  border: 1px solid #e0e0e0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.item-table td {
+  padding: 4px 6px;
+  border: 1px solid #e0e0e0;
+  vertical-align: middle;
+}
+
+/* Input row inside the table uses smaller inputs */
+.input-row input,
+.input-row select {
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+/* VAT text (0%) shown as plain text in the table */
+.vat-label {
+  font-size: 12px;
+  color: #555;
+}
+
+/* Discount cell: number input + % dropdown side by side */
+.disc-row {
+  display: flex;
+  gap: 4px;
+}
+
+.disc-row input {
+  width: 50px;
+}
+
+.disc-row select {
+  width: 45px;
+}
+
+/* ● Add button: blue with circle */
+.btn-add {
+  background: #fff;
+  color: #1565c0;
+  border: 1px solid #1565c0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.btn-add:hover {
+  background: #e3f2fd;
+}
+
+/* ✕ Remove button */
+.btn-remove {
+  background: none;
   border: none;
-  padding: 10px 16px;
-  border-radius: 6px;
+  color: #e53935;
   cursor: pointer;
   font-size: 14px;
 }
 
-.new-sale-btn:hover {
-  opacity: 0.9;
+/* ── BOTTOM SECTION: payment fields LEFT + summary RIGHT ── */
+.bottom-section {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: 24px;
+  margin-bottom: 16px;
+  align-items: start;
+}
+
+/* ── SUMMARY BOX (right side) ── */
+.summary-box {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 14px;
+  font-size: 13px;
+}
+
+/* Each line in the summary: label on left, value on right */
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid #f5f5f5;
+  gap: 8px;
+}
+
+/* Shipping Charges row: dropdown + input on right side */
+.shipping-row {
+  display: flex;
+  gap: 6px;
+}
+
+.shipping-row select {
+  width: 90px;
+}
+
+.shipping-row input {
+  width: 80px;
+}
+
+/* UseAdvancePayment checkbox row */
+.advance-row label {
+  font-size: 12px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Total (ZMW) large bold row */
+.summary-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.total-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a2e5a;
+}
+
+/* Incoterms: dropdown + text input side by side */
+.incoterms-row {
+  display: flex;
+  gap: 6px;
+}
+
+/* ── SHIPMENT DETAILS ── */
+.shipment-section {
+  margin-bottom: 16px;
+}
+
+.add-shipment-btn {
+  background: none;
+  border: none;
+  color: #1565c0;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  margin-bottom: 12px;
+}
+
+.add-shipment-btn:hover {
+  text-decoration: underline;
+}
+
+.shipment-fields {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
+}
+
+/* ── RECEIVED / BALANCE AMOUNT ── */
+.received-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.received-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.received-row input {
+  width: 120px;
+  text-align: right;
+}
+
+.balance-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.balance-label {
+  color: #e53935;
+  font-size: 13px;
+}
+
+.balance-value {
+  font-size: 13px;
+  min-width: 120px;
+  text-align: right;
+}
+
+/* ── ACTION BUTTONS + FOOTER TOTALS ── */
+.action-buttons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-group-left {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* All action buttons share base style */
+.btn-draft,
+.btn-online,
+.btn-mail,
+.btn-save-print,
+.btn-cancel {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+}
+
+.btn-draft  { background: #fff;     color: #333; }
+.btn-online { background: #fff;     color: #333; }
+.btn-mail   { background: #fff;     color: #333; }
+
+/* Save and Print: solid blue */
+.btn-save-print {
+  background: #1565c0;
+  color: #fff;
+  border-color: #1565c0;
+}
+
+.btn-save-print:hover { background: #0d47a1; }
+
+/* Cancel: red */
+.btn-cancel {
+  background: #e53935;
+  color: #fff;
+  border-color: #e53935;
+}
+
+.btn-cancel:hover { background: #c62828; }
+
+/* Footer totals: right-aligned */
+.footer-totals {
+  display: flex;
+  gap: 20px;
+  font-size: 13px;
+  color: #333;
+  font-weight: 500;
 }
