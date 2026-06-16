@@ -318,24 +318,18 @@
   margin-bottom: 16px;
 }
 
-.add-shipment-btn {
-  background: none;
-  border: none;
+/* "+ Add Shipment Details" is a right-aligned label, not a toggle button */
+.add-shipment-label {
+  text-align: right;
   color: #1565c0;
-  cursor: pointer;
   font-size: 13px;
-  padding: 0;
   margin-bottom: 12px;
+  cursor: default;
 }
 
-.add-shipment-btn:hover {
-  text-decoration: underline;
-}
-
+/* Shipment fields: no border, just plain rows matching original design */
 .shipment-fields {
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 12px;
+  padding: 4px 0;
 }
 
 /* ── RECEIVED / BALANCE AMOUNT ── */

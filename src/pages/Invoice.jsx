@@ -82,7 +82,6 @@ function Invoice() {
   const balanceAmount = totalZMW - receivedAmount;
 
   // ── SHIPMENT DETAILS ───────────────────────────────────────
-  const [showShipment, setShowShipment] = useState(false);
   const [gdnNo, setGdnNo] = useState('');
   const [grnNo, setGrnNo] = useState('');
   const [month, setMonth] = useState('');
@@ -417,61 +416,54 @@ function Invoice() {
         </div>
 
         {/* ── 7. SHIPMENT DETAILS ── */}
-        {/* Collapsed by default, toggle with the + button */}
+        {/* ── 7. SHIPMENT DETAILS — always visible, matching original design ── */}
         <div className="shipment-section">
-          <button
-            className="add-shipment-btn"
-            onClick={() => setShowShipment(!showShipment)}
-          >
-            + Add Shipment Details
-          </button>
+          <div className="add-shipment-label">+ Add Shipment Details</div>
 
-          {showShipment && (
-            <div className="shipment-fields">
-              <div className="form-row-3">
-                <div className="field">
-                  <label>GDN Nº</label>
-                  <input placeholder="GDN Number" value={gdnNo} onChange={e => setGdnNo(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>GRN Nº</label>
-                  <input placeholder="GRN Number" value={grnNo} onChange={e => setGrnNo(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Month</label>
-                  <input placeholder="e.g. January 2025" value={month} onChange={e => setMonth(e.target.value)} />
-                </div>
+          <div className="shipment-fields">
+            <div className="form-row-3">
+              <div className="field">
+                <label>GDN Nº</label>
+                <input placeholder="GDN Number" value={gdnNo} onChange={e => setGdnNo(e.target.value)} />
               </div>
-              <div className="form-row-3">
-                <div className="field">
-                  <label>Shipping Via</label>
-                  <input placeholder="Via" value={shippingVia} onChange={e => setShippingVia(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Shipping Date</label>
-                  <input placeholder="Date" value={shippingDate} onChange={e => setShippingDate(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Tracking ID</label>
-                  <input placeholder="Tracking ID" value={trackingId} onChange={e => setTrackingId(e.target.value)} />
-                </div>
+              <div className="field">
+                <label>GRN Nº</label>
+                <input placeholder="GRN Number" value={grnNo} onChange={e => setGrnNo(e.target.value)} />
               </div>
-              <div className="form-row-3">
-                <div className="field">
-                  <label>Transporter</label>
-                  <input placeholder="Transporter name" value={transporter} onChange={e => setTransporter(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Truck Details</label>
-                  <input placeholder="Truck/Vehicle details" value={truckDetails} onChange={e => setTruckDetails(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Shipping Address</label>
-                  <textarea placeholder="Address" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} />
-                </div>
+              <div className="field">
+                <label>Month</label>
+                <input placeholder="e.g. January 2025" value={month} onChange={e => setMonth(e.target.value)} />
               </div>
             </div>
-          )}
+            <div className="form-row-3">
+              <div className="field">
+                <label>Shipping Via</label>
+                <input placeholder="Via" value={shippingVia} onChange={e => setShippingVia(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Shipping Date</label>
+                <input placeholder="Date" value={shippingDate} onChange={e => setShippingDate(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Tracking ID</label>
+                <input placeholder="Tracking ID" value={trackingId} onChange={e => setTrackingId(e.target.value)} />
+              </div>
+            </div>
+            <div className="form-row-3">
+              <div className="field">
+                <label>Transporter</label>
+                <input placeholder="Transporter name" value={transporter} onChange={e => setTransporter(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Truck Details</label>
+                <input placeholder="Truck/Vehicle details" value={truckDetails} onChange={e => setTruckDetails(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Shipping Address</label>
+                <textarea placeholder="Address" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ── 8. RECEIVED AMOUNT / BALANCE AMOUNT ── */}
