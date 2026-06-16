@@ -178,8 +178,8 @@ function Invoice() {
           </div>
         </div>
 
-        {/* 4. TYPE | CURRENCY */}
-        <div className="form-row-2 form-section">
+        {/* 4. TYPE | CURRENCY — use 3-col grid, only fill 2 cols to match width of row above */}
+        <div className="form-row-3 form-section">
           <div className="field">
             <label className="label-required">Type<span>*</span></label>
             <select value={invoiceType} onChange={e => setInvoiceType(e.target.value)}>
@@ -195,6 +195,8 @@ function Invoice() {
               <option>US Dollar (USD)</option>
             </select>
           </div>
+          {/* Empty 3rd column — leaves right side blank like original */}
+          <div></div>
         </div>
 
         {/* 5. ITEM TABLE */}
