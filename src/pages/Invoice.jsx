@@ -3,13 +3,12 @@ import './Invoice.css';
 import { FaShoppingCart, FaCircle } from 'react-icons/fa';
 import { getCustomers } from '../data/customerApi';
 
-// Helper: today's date in MM/DD/YYYY format
+// Helper: today's date in YYYY-MM-DD format (required by type="date" inputs)
 function todayDate() {
   const d = new Date();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  return `${mm}/${dd}/${yyyy}`;
+  return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
 function Invoice() {
@@ -140,11 +139,11 @@ function Invoice() {
           <div className="field">
             <label className="label-required">Invoice date<span>*</span></label>
             <input
-              type="text"
+              type="date"
               value={invoiceDate}
               onChange={e => setInvoiceDate(e.target.value)}
             />
-            <span className="now-link">Now</span>
+            <span className="now-link" onClick={() => setInvoiceDate(todayDate())}>Now</span>
           </div>
 
           <div className="field">
@@ -317,11 +316,11 @@ function Invoice() {
               <div className="field">
                 <label className="label-required">Date<span>*</span></label>
                 <input
-                  type="text"
+                  type="date"
                   value={date}
                   onChange={e => setDate(e.target.value)}
                 />
-                <span className="now-link">Now</span>
+                <span className="now-link" onClick={() => setDate(todayDate())}>Now</span>
               </div>
             </div>
 
