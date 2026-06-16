@@ -330,7 +330,7 @@
   padding: 5px 8px;
 }
 
-/* Clickable toggle — right-aligned after Payment Note */
+/* Clickable toggle — right-aligned blue link, no border */
 .add-shipment-label {
   text-align: right;
   color: #1565c0;
@@ -338,6 +338,10 @@
   margin-bottom: 12px;
   cursor: pointer;
   user-select: none;
+  border: none;
+  outline: none;
+  background: none;
+  display: block;
 }
 
 .add-shipment-label:hover {
