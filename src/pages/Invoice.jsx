@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './Invoice.css';
-import { FaShoppingCart, FaCircle } from 'react-icons/fa';
+import { FaShoppingCart, FaCircle, FaTrash } from 'react-icons/fa';
 import { getCustomers } from '../data/customerApi';
 import productsData from '../data/product.json';
 
@@ -37,44 +37,91 @@ function Invoice() {
   const [invoiceType, setInvoiceType] = useState('Normal Invoice');
   const [currency, setCurrency] = useState('Zambian Kwacha (ZMW)');
 
+  // ── CUSTOMER CUSTOM DROPDOWN ───────────────────────────────
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const customerDropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (customerDropdownRef.current && !customerDropdownRef.current.contains(e.target)) {
+        setShowCustomerDropdown(false);
+        setCustomerSearch('');
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedCustomerName = customers.find(c => c.id === customer)?.name || '';
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    (c.tpin && c.tpin.includes(customerSearch))
+  );
+
+  // ── PRODUCT CUSTOM DROPDOWN ────────────────────────────────
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+  const productDropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutsideProduct(e) {
+      if (productDropdownRef.current && !productDropdownRef.current.contains(e.target)) {
+        setShowProductDropdown(false);
+        setProductSearch('');
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutsideProduct);
+    return () => document.removeEventListener('mousedown', handleClickOutsideProduct);
+  }, []);
+
+  const filteredProducts = products.filter(p =>
+    p.label.toLowerCase().includes(productSearch.toLowerCase()) ||
+    p.ref.toLowerCase().includes(productSearch.toLowerCase())
+  );
+
   // ── ITEM TABLE ─────────────────────────────────────────────
   const [items, setItems] = useState([]);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [itemToRemove, setItemToRemove] = useState(null);
 
   const emptyItem = {
-    product: '', productLabel: '', lotBatch: '', vat: '0%',
+    product: '', productLabel: '', ref: '', lotBatch: '', vat: '0%',
     unitPriceExcl: '', unitPriceInc: '', qty: 1, disc: 0, costPrice: '', total: 0,
   };
   const [currentItem, setCurrentItem] = useState(emptyItem);
   const [barcode, setBarcode] = useState('');
 
-  // When product is selected from dropdown → auto-fill prices and VAT
+  // When product is selected — use functional setState to avoid stale closure
   function handleProductSelect(productId) {
-    const product = products.find(p => p.id === productId);
-    if (!product) {
-      setCurrentItem({ ...currentItem, product: productId, productLabel: '' });
-      return;
-    }
-    const priceExcl = Number(product.price).toFixed(2);
-    const priceInc  = Number(product.price_ttc).toFixed(2);
-    const vatLabel  = product.tva_tx || '0%';
-    const total     = calcItemTotal(priceInc, currentItem.qty, currentItem.disc);
-    setCurrentItem({
-      ...currentItem,
-      product: productId,
-      productLabel: product.label,
-      unitPriceExcl: priceExcl,
-      unitPriceInc: priceInc,
-      vat: vatLabel,
-      costPrice: priceExcl,
-      total,
+    const product = products.find(p => String(p.id) === String(productId));
+    setCurrentItem(prev => {
+      if (!product) return { ...prev, product: productId, productLabel: '' };
+      const priceExcl = Number(product.price).toFixed(2);
+      const priceInc  = Number(product.price_ttc).toFixed(2);
+      const vatLabel  = product.tva_tx || '0%';
+      const total     = calcItemTotal(priceInc, prev.qty, prev.disc);
+      return {
+        ...prev,
+        product: String(productId),
+        productLabel: product.label,
+        ref: product.ref,
+        unitPriceExcl: priceExcl,
+        unitPriceInc: priceInc,
+        vat: vatLabel,
+        costPrice: priceExcl,
+        total,
+      };
     });
   }
 
   // Recalculate total whenever qty, price or discount changes
   function updateCurrentItem(field, value) {
-    const updated = { ...currentItem, [field]: value };
-    updated.total = calcItemTotal(updated.unitPriceInc, updated.qty, updated.disc);
-    setCurrentItem(updated);
+    setCurrentItem(prev => {
+      const updated = { ...prev, [field]: value };
+      updated.total = calcItemTotal(updated.unitPriceInc, updated.qty, updated.disc);
+      return updated;
+    });
   }
 
   function handleAddItem() {
@@ -83,8 +130,8 @@ function Invoice() {
       ...currentItem,
       total: calcItemTotal(currentItem.unitPriceInc, currentItem.qty, currentItem.disc),
     };
-    setItems([...items, finalItem]);
-    setCurrentItem(emptyItem);
+    setItems(prev => [...prev, finalItem]);
+    setCurrentItem({ ...emptyItem }); // fresh object so React always detects the change
   }
 
   // ── PAYMENT FIELDS ─────────────────────────────────────────
@@ -118,7 +165,7 @@ function Invoice() {
   const balanceAmount = totalZMW - Number(receivedAmount || 0);
 
   // ── SHIPMENT DETAILS ───────────────────────────────────────
-  const [showShipment, setShowShipment] = useState(false);
+  const [showShipment, setShowShipment] = useState(true);
   const [gdnNo, setGdnNo] = useState('');
   const [grnNo, setGrnNo] = useState('');
   const [month, setMonth] = useState('');
@@ -146,63 +193,106 @@ function Invoice() {
 
       <div className="invoice-body">
 
-        {/* 2. CUSTOMER */}
-        <div className="form-section">
-          <div className="field full-width">
-            <label className="label-required">Customer<span>*</span></label>
-            <select value={customer} onChange={e => setCustomer(e.target.value)}>
-              <option value="">Select a thirdparty</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+        <div className="top-form-section">
+          {/* 2. CUSTOMER */}
+          <div className="form-section">
+            <div className="field full-width">
+              <label className="label-required">Customer<span>*</span></label>
+              <div className="customer-dropdown-wrapper" ref={customerDropdownRef}>
+                <div
+                  className={`customer-select-box${showCustomerDropdown ? ' open' : ''}`}
+                  onClick={() => {
+                    setShowCustomerDropdown(v => !v);
+                    setCustomerSearch('');
+                  }}
+                >
+                  <span className={selectedCustomerName ? '' : 'placeholder'}>
+                    {selectedCustomerName || 'Select a thirdparty'}
+                  </span>
+                  <span className="cust-arrow">{showCustomerDropdown ? '▲' : '▼'}</span>
+                </div>
+                {showCustomerDropdown && (
+                  <div className="customer-dropdown-panel">
+                    <input
+                      className="customer-search-input"
+                      type="text"
+                      value={customerSearch}
+                      onChange={e => setCustomerSearch(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="customer-list">
+                      {filteredCustomers.map(c => (
+                        <div
+                          key={c.id}
+                          className={`customer-option${String(customer) === String(c.id) ? ' selected' : ''}`}
+                          onClick={() => {
+                            setCustomer(c.id);
+                            setShowCustomerDropdown(false);
+                            setCustomerSearch('');
+                          }}
+                        >
+                          <div className="cust-opt-name">{c.name}</div>
+                          {c.company && <div className="cust-opt-sub">{c.company}</div>}
+                          <div className="cust-opt-meta">
+                            TPIN : {c.tpin || '-'} | Country : {c.country || 'Zambia'}
+                            {c.tracking_id ? ` | Tracking Id : ${c.tracking_id}` : ''}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="customer-add-new">
+                      <FaCircle className="add-new-dot" /> Add New Customer
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* 3. REF CUSTOMER | INVOICE DATE | PROJECT */}
-        <div className="form-row-3 form-section">
-          <div className="field">
-            <label>Ref. customer</label>
-            <input type="text" value={refCustomer} onChange={e => setRefCustomer(e.target.value)} />
+          {/* 3. REF CUSTOMER | INVOICE DATE | PROJECT */}
+          <div className="form-row-3 form-section">
+            <div className="field">
+              <label>Ref. customer</label>
+              <input type="text" value={refCustomer} onChange={e => setRefCustomer(e.target.value)} />
+            </div>
+            <div className="field">
+              <label className="label-required">Invoice date<span>*</span></label>
+              <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
+              <span className="now-link" onClick={() => setInvoiceDate(todayDate())}>Now</span>
+            </div>
+            <div className="field">
+              <label>Project</label>
+              <select value={project} onChange={e => setProject(e.target.value)}>
+                <option value="">Select a project</option>
+              </select>
+            </div>
           </div>
-          <div className="field">
-            <label className="label-required">Invoice date<span>*</span></label>
-            <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
-            <span className="now-link" onClick={() => setInvoiceDate(todayDate())}>Now</span>
-          </div>
-          <div className="field">
-            <label>Project</label>
-            <select value={project} onChange={e => setProject(e.target.value)}>
-              <option value="">Select a project</option>
-            </select>
-          </div>
-        </div>
 
-        {/* 4. TYPE | CURRENCY — use 3-col grid, only fill 2 cols to match width of row above */}
-        <div className="form-row-3 form-section">
-          <div className="field">
-            <label className="label-required">Type<span>*</span></label>
-            <select value={invoiceType} onChange={e => setInvoiceType(e.target.value)}>
-              <option>Normal Invoice</option>
-              <option>Credit Note</option>
-              <option>Debit Note</option>
-            </select>
+          {/* 4. TYPE | CURRENCY */}
+          <div className="form-row-3 form-section">
+            <div className="field">
+              <label className="label-required">Type<span>*</span></label>
+              <select value={invoiceType} onChange={e => setInvoiceType(e.target.value)}>
+                <option>Normal Invoice</option>
+                <option>Credit Note</option>
+                <option>Debit Note</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Currency</label>
+              <select value={currency} onChange={e => setCurrency(e.target.value)}>
+                <option>Zambian Kwacha (ZMW)</option>
+                <option>US Dollar (USD)</option>
+              </select>
+            </div>
+            <div></div>
           </div>
-          <div className="field">
-            <label>Currency</label>
-            <select value={currency} onChange={e => setCurrency(e.target.value)}>
-              <option>Zambian Kwacha (ZMW)</option>
-              <option>US Dollar (USD)</option>
-            </select>
-          </div>
-          {/* Empty 3rd column — leaves right side blank like original */}
-          <div></div>
         </div>
 
         {/* 5. ITEM TABLE */}
         <div className="item-table-section">
           <div className="item-table-header">
-            <h3>Item Table</h3>
+            <h3 className="section-heading">Item Table</h3>
             <input
               className="barcode-input"
               type="text"
@@ -241,23 +331,70 @@ function Invoice() {
                   <td>{Number(item.costPrice).toFixed(2)}</td>
                   <td>{Number(item.total).toFixed(2)}</td>
                   <td>
-                    <button className="btn-remove" onClick={() => setItems(items.filter((_, i) => i !== index))}>✕</button>
+                    <button className="btn-remove" onClick={() => { setItemToRemove(index); setShowRemoveConfirm(true); }}>✕</button>
                   </td>
                 </tr>
               ))}
 
               {/* Input row — live total updates as user types */}
               <tr className="input-row">
-                <td>
-                  <select
-                    value={currentItem.product}
-                    onChange={e => handleProductSelect(e.target.value)}
-                  >
-                    <option value="">Select Predefined Product/Services</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.label} ({p.ref})</option>
-                    ))}
-                  </select>
+                <td style={{ position: 'relative', minWidth: '220px' }}>
+                  <div className="prod-dropdown-wrapper" ref={productDropdownRef}>
+                    <div
+                      className={`prod-select-box${showProductDropdown ? ' open' : ''}`}
+                      onClick={() => {
+                        setShowProductDropdown(v => !v);
+                        setProductSearch('');
+                      }}
+                    >
+                      <span className={currentItem.productLabel ? '' : 'placeholder'}>
+                        {currentItem.productLabel
+                          ? `${currentItem.ref || ''} - ${currentItem.productLabel}`
+                          : 'Select Predefined Product/Services'}
+                      </span>
+                      <span className="cust-arrow">{showProductDropdown ? '▲' : '▼'}</span>
+                    </div>
+                    {showProductDropdown && (
+                      <div className="prod-dropdown-panel">
+                        <input
+                          className="customer-search-input"
+                          type="text"
+                          value={productSearch}
+                          onChange={e => setProductSearch(e.target.value)}
+                          autoFocus
+                        />
+                        <div className="customer-list">
+                          {filteredProducts.map(p => {
+                            const isExcl = p.price_base_type === 'HT';
+                            const displayPrice = isExcl
+                              ? `${Number(p.price).toFixed(2)} Excl. tax`
+                              : `${Number(p.price_ttc).toFixed(2)} Inc. tax`;
+                            const stock = Number(p.stock || 0).toLocaleString('en', { minimumFractionDigits: 2 });
+                            const classification = p.classification || '10101501';
+                            const isSelected = String(currentItem.product) === String(p.id);
+                            return (
+                              <div
+                                key={p.id}
+                                className={`customer-option${isSelected ? ' selected' : ''}`}
+                                onClick={() => {
+                                  handleProductSelect(p.id);
+                                  setShowProductDropdown(false);
+                                  setProductSearch('');
+                                }}
+                              >
+                                <div className="cust-opt-name">☆ {p.label}</div>
+                                <div className="cust-opt-sub">Ref :{p.ref} | Classification : {classification}</div>
+                                <div className="cust-opt-meta">Price: {displayPrice} | Stock: {stock}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="customer-add-new">
+                          <FaCircle className="add-new-dot" /> Add New
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td>
                   <input
@@ -295,7 +432,10 @@ function Invoice() {
                       value={currentItem.disc}
                       onChange={e => updateCurrentItem('disc', e.target.value)}
                     />
-                    <select><option>%</option></select>
+                    <select>
+                      <option>%</option>
+                      <option>P</option>
+                    </select>
                   </div>
                 </td>
                 <td>
@@ -374,7 +514,51 @@ function Invoice() {
             </div>
 
             <div className="add-shipment-label" onClick={() => setShowShipment(!showShipment)}>
-              {showShipment ? '− Hide Shipment Details' : '+ Add Shipment Details'}
+              + Add Shipment Details
+            </div>
+            <div className="shipment-fields" style={{ display: showShipment ? 'block' : 'none' }}>
+              <div className="form-row-3">
+                <div className="field">
+                  <label>GDN Nº</label>
+                  <input placeholder="GDN Number" value={gdnNo} onChange={e => setGdnNo(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>GRN Nº</label>
+                  <input placeholder="GRN Number" value={grnNo} onChange={e => setGrnNo(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Month</label>
+                  <input placeholder="e.g. January 2025" value={month} onChange={e => setMonth(e.target.value)} />
+                </div>
+              </div>
+              <div className="form-row-3">
+                <div className="field">
+                  <label>Shipping Via</label>
+                  <input placeholder="Via" value={shippingVia} onChange={e => setShippingVia(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Shipping Date</label>
+                  <input placeholder="Date" value={shippingDate} onChange={e => setShippingDate(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Tracking ID</label>
+                  <input placeholder="Tracking ID" value={trackingId} onChange={e => setTrackingId(e.target.value)} />
+                </div>
+              </div>
+              <div className="form-row-3">
+                <div className="field">
+                  <label>Transporter</label>
+                  <input placeholder="Transporter name" value={transporter} onChange={e => setTransporter(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Truck Details</label>
+                  <input placeholder="Truck/Vehicle details" value={truckDetails} onChange={e => setTruckDetails(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Shipping Address</label>
+                  <textarea placeholder="Address" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -422,56 +606,6 @@ function Invoice() {
           </div>
         </div>
 
-        {/* 7. SHIPMENT DETAILS */}
-        <div className="shipment-section">
-          {showShipment && (
-            <div className="shipment-fields">
-              <div className="form-row-3">
-                <div className="field">
-                  <label>GDN Nº</label>
-                  <input placeholder="GDN Number" value={gdnNo} onChange={e => setGdnNo(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>GRN Nº</label>
-                  <input placeholder="GRN Number" value={grnNo} onChange={e => setGrnNo(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Month</label>
-                  <input placeholder="e.g. January 2025" value={month} onChange={e => setMonth(e.target.value)} />
-                </div>
-              </div>
-              <div className="form-row-3">
-                <div className="field">
-                  <label>Shipping Via</label>
-                  <input placeholder="Via" value={shippingVia} onChange={e => setShippingVia(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Shipping Date</label>
-                  <input placeholder="Date" value={shippingDate} onChange={e => setShippingDate(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Tracking ID</label>
-                  <input placeholder="Tracking ID" value={trackingId} onChange={e => setTrackingId(e.target.value)} />
-                </div>
-              </div>
-              <div className="form-row-3">
-                <div className="field">
-                  <label>Transporter</label>
-                  <input placeholder="Transporter name" value={transporter} onChange={e => setTransporter(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Truck Details</label>
-                  <input placeholder="Truck/Vehicle details" value={truckDetails} onChange={e => setTruckDetails(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Shipping Address</label>
-                  <textarea placeholder="Address" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* 8. RECEIVED / BALANCE */}
         <div className="received-section">
           <div className="received-row">
@@ -505,6 +639,25 @@ function Invoice() {
         </div>
 
       </div>
+
+      {/* REMOVE CONFIRMATION MODAL */}
+      {showRemoveConfirm && (
+        <div className="modal-overlay" onClick={() => setShowRemoveConfirm(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-icon"><FaTrash /></div>
+            <h3 className="modal-title">Remove Line</h3>
+            <p className="modal-msg">Are you sure you want to remove this line?</p>
+            <div className="modal-actions">
+              <button className="modal-btn-cancel" onClick={() => setShowRemoveConfirm(false)}>Cancel</button>
+              <button className="modal-btn-remove" onClick={() => {
+                setItems(prev => prev.filter((_, i) => i !== itemToRemove));
+                setShowRemoveConfirm(false);
+                setItemToRemove(null);
+              }}>Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

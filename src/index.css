@@ -10,9 +10,11 @@ html, body {
   font-size: 14px;
   background: #ffffff;
   color: #333;
+  overflow-x: hidden;
 }
 
 #root {
   width: 100%;
   min-height: 100vh;
+  overflow-x: hidden;
 }
