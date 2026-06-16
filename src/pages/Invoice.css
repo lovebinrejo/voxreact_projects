@@ -1,0 +1,51 @@
+.invoice-header h1 {
+  color: #0b2a5b;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.cart-icon {
+  color: #0b2a5b;
+  font-size: 24px;
+  margin-right: 8px;
+}
+.invoice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cart-icon {
+  color: #0b2a5b;
+  font-size: 22px;
+}
+
+.title-section h1 {
+  margin: 0;
+  color: #0b2a5b;
+  font-size: 28px;
+}
+
+.new-sale-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #e9eaec;
+  color: rgb(88, 79, 79);
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.new-sale-btn:hover {
+  opacity: 0.9;
+}

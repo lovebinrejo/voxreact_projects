@@ -1,0 +1,46 @@
+{
+  "success": true,
+  "message": "",
+  "data": [
+    {
+      "id": "1990",
+      "name": "Abinav Traders",
+      "email": "",
+      "phone": "1212222126",
+      "tpin": "1000000000",
+      "idprof1": "1000000000",
+      "code_client": "CU2603-00039",
+      "address": "",
+      "zip": "",
+      "town": ""
+    },
+    {
+      "id": "1964",
+      "name": "cust001",
+      "email": "asasa@as.in",
+      "phone": "",
+      "tpin": "1000000000",
+      "idprof1": "1000000000",
+      "code_client": "CU2511-00024",
+      "address": "",
+      "zip": "",
+      "town": ""
+    },
+    {
+      "id": "17",
+      "name": "cust1",
+      "email": "",
+      "phone": "",
+      "tpin": "1000000000",
+      "idprof1": "1000000000",
+      "code_client": "CU2505-00010",
+      "address": "",
+      "zip": "",
+      "town": ""
+    }
+  ],
+  "total": "36",
+  "page": 1,
+  "limit": 100,
+  "has_more": false
+}
