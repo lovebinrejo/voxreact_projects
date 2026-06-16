@@ -314,17 +314,34 @@
 }
 
 /* ── SHIPMENT DETAILS ── */
+/* Shipment section matches the left payment fields width (75% of bottom-section) */
 .shipment-section {
   margin-bottom: 16px;
+  max-width: 75%;
 }
 
-/* "+ Add Shipment Details" is a right-aligned label, not a toggle button */
+.shipment-fields .form-row-3 {
+  gap: 12px;
+}
+
+.shipment-fields input,
+.shipment-fields textarea {
+  font-size: 12px;
+  padding: 5px 8px;
+}
+
+/* Clickable toggle — right-aligned after Payment Note */
 .add-shipment-label {
   text-align: right;
   color: #1565c0;
   font-size: 13px;
   margin-bottom: 12px;
-  cursor: default;
+  cursor: pointer;
+  user-select: none;
+}
+
+.add-shipment-label:hover {
+  text-decoration: underline;
 }
 
 /* Shipment fields: no border, just plain rows matching original design */

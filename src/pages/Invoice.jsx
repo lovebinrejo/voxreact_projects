@@ -82,6 +82,7 @@ function Invoice() {
   const balanceAmount = totalZMW - receivedAmount;
 
   // ── SHIPMENT DETAILS ───────────────────────────────────────
+  const [showShipment, setShowShipment] = useState(false);
   const [gdnNo, setGdnNo] = useState('');
   const [grnNo, setGrnNo] = useState('');
   const [month, setMonth] = useState('');
@@ -363,8 +364,13 @@ function Invoice() {
               />
             </div>
 
-            {/* + Add Shipment Details: right-aligned at bottom of payment fields */}
-            <div className="add-shipment-label">+ Add Shipment Details</div>
+            {/* Clicking this toggles the shipment fields below */}
+            <div
+              className="add-shipment-label"
+              onClick={() => setShowShipment(!showShipment)}
+            >
+              {showShipment ? '− Hide Shipment Details' : '+ Add Shipment Details'}
+            </div>
           </div>
 
           {/* RIGHT: totals summary box */}
@@ -418,9 +424,9 @@ function Invoice() {
           </div>
         </div>
 
-        {/* ── 7. SHIPMENT DETAILS — full width below the payment+summary section ── */}
+        {/* ── 7. SHIPMENT DETAILS — full width, shown when toggle is clicked ── */}
         <div className="shipment-section">
-          <div className="shipment-fields">
+          {showShipment && <div className="shipment-fields">
             <div className="form-row-3">
               <div className="field">
                 <label>GDN Nº</label>
@@ -463,7 +469,7 @@ function Invoice() {
                 <textarea placeholder="Address" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} />
               </div>
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* ── 8. RECEIVED AMOUNT / BALANCE AMOUNT ── */}
