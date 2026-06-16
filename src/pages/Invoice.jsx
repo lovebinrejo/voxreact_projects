@@ -362,6 +362,9 @@ function Invoice() {
                 onChange={e => setPaymentNote(e.target.value)}
               />
             </div>
+
+            {/* + Add Shipment Details: right-aligned at bottom of payment fields */}
+            <div className="add-shipment-label">+ Add Shipment Details</div>
           </div>
 
           {/* RIGHT: totals summary box */}
@@ -415,11 +418,8 @@ function Invoice() {
           </div>
         </div>
 
-        {/* ── 7. SHIPMENT DETAILS ── */}
-        {/* ── 7. SHIPMENT DETAILS — always visible, matching original design ── */}
+        {/* ── 7. SHIPMENT DETAILS — full width below the payment+summary section ── */}
         <div className="shipment-section">
-          <div className="add-shipment-label">+ Add Shipment Details</div>
-
           <div className="shipment-fields">
             <div className="form-row-3">
               <div className="field">
