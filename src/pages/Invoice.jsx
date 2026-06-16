@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './Invoice.css';
 import { FaShoppingCart, FaCircle } from 'react-icons/fa';
 import { getCustomers } from '../data/customerApi';
+import productsData from '../data/product.json';
 
-// Helper: today's date in YYYY-MM-DD format (required by type="date" inputs)
 function todayDate() {
   const d = new Date();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -11,16 +11,23 @@ function todayDate() {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
-function Invoice() {
-  // ── CUSTOMERS ──────────────────────────────────────────────
-  // Loaded from local JSON via customerApi.js
-  const [customers, setCustomers] = useState([]);
+// Calculate total for one item row: price_incl × qty × (1 - discount%)
+function calcItemTotal(unitPriceInc, qty, disc) {
+  return Number(unitPriceInc || 0) * Number(qty || 0) * (1 - Number(disc || 0) / 100);
+}
 
+function Invoice() {
+
+  // ── CUSTOMERS ──────────────────────────────────────────────
+  const [customers, setCustomers] = useState([]);
   useEffect(() => {
     getCustomers()
       .then(res => setCustomers(res.data || []))
       .catch(err => console.error(err));
   }, []);
+
+  // ── PRODUCTS — loaded directly from product.json ──────────
+  const products = productsData.data || [];
 
   // ── TOP FORM FIELDS ────────────────────────────────────────
   const [customer, setCustomer] = useState('');
@@ -31,36 +38,56 @@ function Invoice() {
   const [currency, setCurrency] = useState('Zambian Kwacha (ZMW)');
 
   // ── ITEM TABLE ─────────────────────────────────────────────
-  // Each item row in the table
   const [items, setItems] = useState([]);
 
-  // The current empty row at the bottom (being filled in)
-  const [currentItem, setCurrentItem] = useState({
-    product: '',
-    lotBatch: '',
-    vat: '0%',
-    unitPriceExcl: 0,
-    unitPriceInc: 0,
-    qty: 1,
-    disc: 0,
-    costPrice: 0,
-    total: 0,
-  });
-
+  const emptyItem = {
+    product: '', productLabel: '', lotBatch: '', vat: '0%',
+    unitPriceExcl: '', unitPriceInc: '', qty: 1, disc: 0, costPrice: '', total: 0,
+  };
+  const [currentItem, setCurrentItem] = useState(emptyItem);
   const [barcode, setBarcode] = useState('');
 
-  // Add the current row to the items list
-  function handleAddItem() {
-    if (!currentItem.product) return;
-    setItems([...items, currentItem]);
+  // When product is selected from dropdown → auto-fill prices and VAT
+  function handleProductSelect(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) {
+      setCurrentItem({ ...currentItem, product: productId, productLabel: '' });
+      return;
+    }
+    const priceExcl = Number(product.price).toFixed(2);
+    const priceInc  = Number(product.price_ttc).toFixed(2);
+    const vatLabel  = product.tva_tx || '0%';
+    const total     = calcItemTotal(priceInc, currentItem.qty, currentItem.disc);
     setCurrentItem({
-      product: '', lotBatch: '', vat: '0%',
-      unitPriceExcl: 0, unitPriceInc: 0,
-      qty: 1, disc: 0, costPrice: 0, total: 0,
+      ...currentItem,
+      product: productId,
+      productLabel: product.label,
+      unitPriceExcl: priceExcl,
+      unitPriceInc: priceInc,
+      vat: vatLabel,
+      costPrice: priceExcl,
+      total,
     });
   }
 
-  // ── PAYMENT / WAREHOUSE FIELDS ─────────────────────────────
+  // Recalculate total whenever qty, price or discount changes
+  function updateCurrentItem(field, value) {
+    const updated = { ...currentItem, [field]: value };
+    updated.total = calcItemTotal(updated.unitPriceInc, updated.qty, updated.disc);
+    setCurrentItem(updated);
+  }
+
+  function handleAddItem() {
+    if (!currentItem.product) return;
+    const finalItem = {
+      ...currentItem,
+      total: calcItemTotal(currentItem.unitPriceInc, currentItem.qty, currentItem.disc),
+    };
+    setItems([...items, finalItem]);
+    setCurrentItem(emptyItem);
+  }
+
+  // ── PAYMENT FIELDS ─────────────────────────────────────────
   const [warehouse, setWarehouse] = useState('MAIN_BRANCH');
   const [bankAccount, setBankAccount] = useState('');
   const [date, setDate] = useState(todayDate());
@@ -70,16 +97,25 @@ function Invoice() {
   const [paymentNote, setPaymentNote] = useState('');
 
   // ── SUMMARY CALCULATIONS ───────────────────────────────────
+  // subTotal = sum of all item totals (incl. VAT)
   const subTotal = items.reduce((sum, item) => sum + Number(item.total), 0);
+
+  // VAT = sum of (price_incl - price_excl) × qty × (1 - disc%)
+  const vatAmount = items.reduce((sum, item) => {
+    const vatPerUnit = Number(item.unitPriceInc || 0) - Number(item.unitPriceExcl || 0);
+    return sum + vatPerUnit * Number(item.qty || 0) * (1 - Number(item.disc || 0) / 100);
+  }, 0);
+
+  const totalExcl = subTotal - vatAmount;
+  const totalIncl = subTotal;
+  const paidAmount = 0;
+
   const [shippingChargeType, setShippingChargeType] = useState('A-16%');
   const [shippingCharge, setShippingCharge] = useState('');
-  const vatAmount = 0;                          // extend later with real VAT logic
-  const totalExcl = subTotal;
-  const totalIncl = subTotal + vatAmount;
-  const paidAmount = 0;
   const totalZMW = totalIncl + Number(shippingCharge || 0);
-  const [receivedAmount, setReceivedAmount] = useState(0);
-  const balanceAmount = totalZMW - receivedAmount;
+
+  const [receivedAmount, setReceivedAmount] = useState('');
+  const balanceAmount = totalZMW - Number(receivedAmount || 0);
 
   // ── SHIPMENT DETAILS ───────────────────────────────────────
   const [showShipment, setShowShipment] = useState(false);
@@ -97,7 +133,7 @@ function Invoice() {
   return (
     <div className="invoice-page">
 
-      {/* ── 1. HEADER ── */}
+      {/* 1. HEADER */}
       <div className="invoice-header">
         <h1 className="invoice-title">
           <FaShoppingCart className="cart-icon" />
@@ -110,8 +146,7 @@ function Invoice() {
 
       <div className="invoice-body">
 
-        {/* ── 2. CUSTOMER DROPDOWN ── */}
-        {/* Full-width row. The * means this field is required */}
+        {/* 2. CUSTOMER */}
         <div className="form-section">
           <div className="field full-width">
             <label className="label-required">Customer<span>*</span></label>
@@ -124,28 +159,17 @@ function Invoice() {
           </div>
         </div>
 
-        {/* ── 3. REF CUSTOMER | INVOICE DATE | PROJECT ── */}
-        {/* Three columns in one row */}
-        <div className="form-section form-row-3">
+        {/* 3. REF CUSTOMER | INVOICE DATE | PROJECT */}
+        <div className="form-row-3 form-section">
           <div className="field">
             <label>Ref. customer</label>
-            <input
-              type="text"
-              value={refCustomer}
-              onChange={e => setRefCustomer(e.target.value)}
-            />
+            <input type="text" value={refCustomer} onChange={e => setRefCustomer(e.target.value)} />
           </div>
-
           <div className="field">
             <label className="label-required">Invoice date<span>*</span></label>
-            <input
-              type="date"
-              value={invoiceDate}
-              onChange={e => setInvoiceDate(e.target.value)}
-            />
+            <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
             <span className="now-link" onClick={() => setInvoiceDate(todayDate())}>Now</span>
           </div>
-
           <div className="field">
             <label>Project</label>
             <select value={project} onChange={e => setProject(e.target.value)}>
@@ -154,8 +178,8 @@ function Invoice() {
           </div>
         </div>
 
-        {/* ── 4. TYPE | CURRENCY ── */}
-        <div className="form-section form-row-2">
+        {/* 4. TYPE | CURRENCY */}
+        <div className="form-row-2 form-section">
           <div className="field">
             <label className="label-required">Type<span>*</span></label>
             <select value={invoiceType} onChange={e => setInvoiceType(e.target.value)}>
@@ -164,7 +188,6 @@ function Invoice() {
               <option>Debit Note</option>
             </select>
           </div>
-
           <div className="field">
             <label>Currency</label>
             <select value={currency} onChange={e => setCurrency(e.target.value)}>
@@ -174,7 +197,7 @@ function Invoice() {
           </div>
         </div>
 
-        {/* ── 5. ITEM TABLE ── */}
+        {/* 5. ITEM TABLE */}
         <div className="item-table-section">
           <div className="item-table-header">
             <h3>Item Table</h3>
@@ -187,7 +210,6 @@ function Invoice() {
             />
           </div>
 
-          {/* Table: shows all added items + one empty input row */}
           <table className="item-table">
             <thead>
               <tr>
@@ -204,10 +226,10 @@ function Invoice() {
               </tr>
             </thead>
             <tbody>
-              {/* Already-added items */}
+              {/* Added items */}
               {items.map((item, index) => (
                 <tr key={index}>
-                  <td>{item.product}</td>
+                  <td>{item.productLabel || item.product}</td>
                   <td>{item.lotBatch}</td>
                   <td>{item.vat}</td>
                   <td>{Number(item.unitPriceExcl).toFixed(2)}</td>
@@ -217,51 +239,51 @@ function Invoice() {
                   <td>{Number(item.costPrice).toFixed(2)}</td>
                   <td>{Number(item.total).toFixed(2)}</td>
                   <td>
-                    <button
-                      className="btn-remove"
-                      onClick={() => setItems(items.filter((_, i) => i !== index))}
-                    >✕</button>
+                    <button className="btn-remove" onClick={() => setItems(items.filter((_, i) => i !== index))}>✕</button>
                   </td>
                 </tr>
               ))}
 
-              {/* New empty input row */}
+              {/* Input row — live total updates as user types */}
               <tr className="input-row">
                 <td>
                   <select
                     value={currentItem.product}
-                    onChange={e => setCurrentItem({ ...currentItem, product: e.target.value })}
+                    onChange={e => handleProductSelect(e.target.value)}
                   >
                     <option value="">Select Predefined Product/Services</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.label} ({p.ref})</option>
+                    ))}
                   </select>
                 </td>
                 <td>
                   <input
                     type="text"
                     value={currentItem.lotBatch}
-                    onChange={e => setCurrentItem({ ...currentItem, lotBatch: e.target.value })}
+                    onChange={e => updateCurrentItem('lotBatch', e.target.value)}
                   />
                 </td>
-                <td><span className="vat-label">0%</span></td>
+                <td><span className="vat-label">{currentItem.vat}</span></td>
                 <td>
                   <input
                     type="number"
                     value={currentItem.unitPriceExcl}
-                    onChange={e => setCurrentItem({ ...currentItem, unitPriceExcl: e.target.value })}
+                    onChange={e => updateCurrentItem('unitPriceExcl', e.target.value)}
                   />
                 </td>
                 <td>
                   <input
                     type="number"
                     value={currentItem.unitPriceInc}
-                    onChange={e => setCurrentItem({ ...currentItem, unitPriceInc: e.target.value })}
+                    onChange={e => updateCurrentItem('unitPriceInc', e.target.value)}
                   />
                 </td>
                 <td>
                   <input
                     type="number"
                     value={currentItem.qty}
-                    onChange={e => setCurrentItem({ ...currentItem, qty: e.target.value })}
+                    onChange={e => updateCurrentItem('qty', e.target.value)}
                   />
                 </td>
                 <td>
@@ -269,7 +291,7 @@ function Invoice() {
                     <input
                       type="number"
                       value={currentItem.disc}
-                      onChange={e => setCurrentItem({ ...currentItem, disc: e.target.value })}
+                      onChange={e => updateCurrentItem('disc', e.target.value)}
                     />
                     <select><option>%</option></select>
                   </div>
@@ -278,28 +300,23 @@ function Invoice() {
                   <input
                     type="number"
                     value={currentItem.costPrice}
-                    onChange={e => setCurrentItem({ ...currentItem, costPrice: e.target.value })}
+                    onChange={e => updateCurrentItem('costPrice', e.target.value)}
                   />
                 </td>
-                <td>{Number(currentItem.total).toFixed(2)}</td>
+                {/* Total auto-calculated from qty × unit price inc × (1 - disc%) */}
+                <td>{calcItemTotal(currentItem.unitPriceInc, currentItem.qty, currentItem.disc).toFixed(2)}</td>
                 <td>
-                  <button className="btn-add" onClick={handleAddItem}>
-                    ● Add
-                  </button>
+                  <button className="btn-add" onClick={handleAddItem}>● Add</button>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        {/* ── 6. PAYMENT FIELDS + SUMMARY SIDE BY SIDE ── */}
-        {/* Left side = payment form fields, Right side = totals summary */}
+        {/* 6. PAYMENT FIELDS + SUMMARY */}
         <div className="bottom-section">
 
-          {/* LEFT: payment fields */}
           <div className="payment-fields">
-
-            {/* Row: Warehouse | Bank Account | Date */}
             <div className="form-row-3">
               <div className="field">
                 <label className="label-required">Warehouse<span>*</span></label>
@@ -315,16 +332,11 @@ function Invoice() {
               </div>
               <div className="field">
                 <label className="label-required">Date<span>*</span></label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                />
+                <input type="date" value={date} onChange={e => setDate(e.target.value)} />
                 <span className="now-link" onClick={() => setDate(todayDate())}>Now</span>
               </div>
             </div>
 
-            {/* Row: Payment Type | Payment Terms | Incoterms */}
             <div className="form-row-3">
               <div className="field">
                 <label className="label-required">Payment Type<span>*</span></label>
@@ -354,26 +366,17 @@ function Invoice() {
               </div>
             </div>
 
-            {/* Payment Note */}
             <div className="field">
               <label>Payment Note</label>
-              <textarea
-                placeholder="Note"
-                value={paymentNote}
-                onChange={e => setPaymentNote(e.target.value)}
-              />
+              <textarea placeholder="Note" value={paymentNote} onChange={e => setPaymentNote(e.target.value)} />
             </div>
 
-            {/* Clicking this toggles the shipment fields below */}
-            <div
-              className="add-shipment-label"
-              onClick={() => setShowShipment(!showShipment)}
-            >
+            <div className="add-shipment-label" onClick={() => setShowShipment(!showShipment)}>
               {showShipment ? '− Hide Shipment Details' : '+ Add Shipment Details'}
             </div>
           </div>
 
-          {/* RIGHT: totals summary box */}
+          {/* RIGHT: summary box */}
           <div className="summary-box">
             <div className="summary-row">
               <span>Sub Total</span>
@@ -382,18 +385,11 @@ function Invoice() {
             <div className="summary-row">
               <span>Shipping Charges</span>
               <div className="shipping-row">
-                <select
-                  value={shippingChargeType}
-                  onChange={e => setShippingChargeType(e.target.value)}
-                >
+                <select value={shippingChargeType} onChange={e => setShippingChargeType(e.target.value)}>
                   <option>A-16%</option>
                   <option>None</option>
                 </select>
-                <input
-                  type="number"
-                  value={shippingCharge}
-                  onChange={e => setShippingCharge(e.target.value)}
-                />
+                <input type="number" value={shippingCharge} onChange={e => setShippingCharge(e.target.value)} />
               </div>
             </div>
             <div className="summary-row">
@@ -424,71 +420,74 @@ function Invoice() {
           </div>
         </div>
 
-        {/* ── 7. SHIPMENT DETAILS — full width, shown when toggle is clicked ── */}
+        {/* 7. SHIPMENT DETAILS */}
         <div className="shipment-section">
-          {showShipment && <div className="shipment-fields">
-            <div className="form-row-3">
-              <div className="field">
-                <label>GDN Nº</label>
-                <input placeholder="GDN Number" value={gdnNo} onChange={e => setGdnNo(e.target.value)} />
+          {showShipment && (
+            <div className="shipment-fields">
+              <div className="form-row-3">
+                <div className="field">
+                  <label>GDN Nº</label>
+                  <input placeholder="GDN Number" value={gdnNo} onChange={e => setGdnNo(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>GRN Nº</label>
+                  <input placeholder="GRN Number" value={grnNo} onChange={e => setGrnNo(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Month</label>
+                  <input placeholder="e.g. January 2025" value={month} onChange={e => setMonth(e.target.value)} />
+                </div>
               </div>
-              <div className="field">
-                <label>GRN Nº</label>
-                <input placeholder="GRN Number" value={grnNo} onChange={e => setGrnNo(e.target.value)} />
+              <div className="form-row-3">
+                <div className="field">
+                  <label>Shipping Via</label>
+                  <input placeholder="Via" value={shippingVia} onChange={e => setShippingVia(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Shipping Date</label>
+                  <input placeholder="Date" value={shippingDate} onChange={e => setShippingDate(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Tracking ID</label>
+                  <input placeholder="Tracking ID" value={trackingId} onChange={e => setTrackingId(e.target.value)} />
+                </div>
               </div>
-              <div className="field">
-                <label>Month</label>
-                <input placeholder="e.g. January 2025" value={month} onChange={e => setMonth(e.target.value)} />
+              <div className="form-row-3">
+                <div className="field">
+                  <label>Transporter</label>
+                  <input placeholder="Transporter name" value={transporter} onChange={e => setTransporter(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Truck Details</label>
+                  <input placeholder="Truck/Vehicle details" value={truckDetails} onChange={e => setTruckDetails(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Shipping Address</label>
+                  <textarea placeholder="Address" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} />
+                </div>
               </div>
             </div>
-            <div className="form-row-3">
-              <div className="field">
-                <label>Shipping Via</label>
-                <input placeholder="Via" value={shippingVia} onChange={e => setShippingVia(e.target.value)} />
-              </div>
-              <div className="field">
-                <label>Shipping Date</label>
-                <input placeholder="Date" value={shippingDate} onChange={e => setShippingDate(e.target.value)} />
-              </div>
-              <div className="field">
-                <label>Tracking ID</label>
-                <input placeholder="Tracking ID" value={trackingId} onChange={e => setTrackingId(e.target.value)} />
-              </div>
-            </div>
-            <div className="form-row-3">
-              <div className="field">
-                <label>Transporter</label>
-                <input placeholder="Transporter name" value={transporter} onChange={e => setTransporter(e.target.value)} />
-              </div>
-              <div className="field">
-                <label>Truck Details</label>
-                <input placeholder="Truck/Vehicle details" value={truckDetails} onChange={e => setTruckDetails(e.target.value)} />
-              </div>
-              <div className="field">
-                <label>Shipping Address</label>
-                <textarea placeholder="Address" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} />
-              </div>
-            </div>
-          </div>}
+          )}
         </div>
 
-        {/* ── 8. RECEIVED AMOUNT / BALANCE AMOUNT ── */}
+        {/* 8. RECEIVED / BALANCE */}
         <div className="received-section">
           <div className="received-row">
             <span>Received Amount (ZMW)</span>
             <input
               type="number"
               value={receivedAmount}
+              placeholder="0.0000"
               onChange={e => setReceivedAmount(e.target.value)}
             />
           </div>
           <div className="balance-row">
             <span className="balance-label">Balance Amount (ZMW)</span>
-            <span className="balance-value">{Number(balanceAmount).toFixed(4)}</span>
+            <span className="balance-value">{balanceAmount.toFixed(4)}</span>
           </div>
         </div>
 
-        {/* ── 9. ACTION BUTTONS ── */}
+        {/* 9. ACTION BUTTONS */}
         <div className="action-buttons">
           <div className="btn-group-left">
             <button className="btn-draft">Save as Draft</button>
