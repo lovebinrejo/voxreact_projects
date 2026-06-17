@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './Invoice.css';
-import { FaShoppingCart, FaCircle, FaTrash } from 'react-icons/fa';
+import { FaShoppingCart, FaCircle, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { getCustomers } from '../data/customerApi';
 import productsData from '../data/product.json';
 
@@ -16,6 +16,66 @@ function calcItemTotal(unitPriceInc, qty, disc) {
   return Number(unitPriceInc || 0) * Number(qty || 0) * (1 - Number(disc || 0) / 100);
 }
 
+// Custom searchable dropdown for "Select Tax Category" fields — matches the
+// customer/product picker styling instead of the native browser <select>.
+function TaxCategoryDropdown({ label, required, value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setSearch('');
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filtered = options.filter(o => o.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="field">
+      <label className={required ? 'label-required' : ''}>{label}{required && <span>*</span>}</label>
+      <div className="customer-dropdown-wrapper" ref={ref}>
+        <div
+          className={`customer-select-box${open ? ' open' : ''}`}
+          onClick={() => { setOpen(v => !v); setSearch(''); }}
+        >
+          <span className={value ? '' : 'placeholder'}>{value || 'Select Tax Category'}</span>
+          <span className="cust-arrow">{open ? '▲' : '▼'}</span>
+        </div>
+        {open && (
+          <div className="customer-dropdown-panel">
+            <input
+              className="customer-search-input"
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              autoFocus
+            />
+            <div className="customer-list">
+              {filtered.map(o => (
+                <div
+                  key={o}
+                  className={`customer-option${value === o ? ' selected' : ''}`}
+                  onClick={() => { onChange(o); setOpen(false); setSearch(''); }}
+                >
+                  <div className="cust-opt-name">{o}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const TAX_CATEGORY_OPTIONS = ['ECM-5%', 'EXEEG-3%'];
+
 function Invoice() {
 
   // ── CUSTOMERS ──────────────────────────────────────────────
@@ -27,7 +87,44 @@ function Invoice() {
   }, []);
 
   // ── PRODUCTS — loaded directly from product.json ──────────
-  const products = productsData.data || [];
+  const [products, setProducts] = useState(productsData.data || []);
+
+  // ── ADD PRODUCT MODAL ──────────────────────────────────────
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const emptyNewProduct = {
+    ref: '', label: '', statusSell: 'For sale', statusPurchase: 'For purchase',
+    classification: '', natureFinished: true, natureRaw: false, natureService: false,
+    countryOrigin: 'Zambia (ZM)', defaultWarehouse: '',
+    stockLimit: '', desiredStock: '', unit: '', packagingUnit: '',
+    sellingPrice: '', sellingPriceTaxType: 'Inc. tax', minSellingPrice: '',
+    vatCategoryCode: 'A-16%', iplCategoryCode: '', tourismLevyCode: '', exciseTaxCategoryCode: '',
+    manufactureTPIN: '', manufacturerItemCode: '', rrp: '', barcodeType: 'Code 128',
+    barcodeValue: '', tags: '',
+  };
+  const [newProduct, setNewProduct] = useState(emptyNewProduct);
+
+  function updateNewProduct(field, value) {
+    setNewProduct(prev => ({ ...prev, [field]: value }));
+  }
+
+  function handleCreateItem() {
+    if (!newProduct.ref || !newProduct.label) return;
+    const isIncTax = newProduct.sellingPriceTaxType === 'Inc. tax';
+    const product = {
+      id: String(Date.now()),
+      ref: newProduct.ref,
+      label: newProduct.label,
+      price: isIncTax ? '' : newProduct.sellingPrice,
+      price_ttc: isIncTax ? newProduct.sellingPrice : '',
+      price_base_type: isIncTax ? 'TTC' : 'HT',
+      tva_tx: newProduct.vatCategoryCode,
+      stock: '0',
+      classification: newProduct.classification,
+    };
+    setProducts(prev => [...prev, product]);
+    setNewProduct(emptyNewProduct);
+    setShowAddProduct(false);
+  }
 
   // ── TOP FORM FIELDS ────────────────────────────────────────
   const [customer, setCustomer] = useState('');
@@ -53,7 +150,10 @@ function Invoice() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const selectedCustomerName = customers.find(c => c.id === customer)?.name || '';
+  const selectedCustomer = customers.find(c => String(c.id) === String(customer)) || null;
+  const selectedCustomerName = selectedCustomer
+    ? `${selectedCustomer.name}${selectedCustomer.code_client ? ' ' + selectedCustomer.code_client : ''} | Tpin : ${selectedCustomer.tpin || '-'} | Country : ${selectedCustomer.country || 'Zambia'}`
+    : '';
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
     (c.tpin && c.tpin.includes(customerSearch))
@@ -186,7 +286,7 @@ function Invoice() {
           <FaShoppingCart className="cart-icon" />
           New Sales Invoice
         </h1>
-        <button className="new-sale-btn">
+        <button type="button" className="new-sale-btn">
           <FaCircle className="dot-icon" /> New Sale
         </button>
       </div>
@@ -246,6 +346,20 @@ function Invoice() {
                   </div>
                 )}
               </div>
+              {selectedCustomer && (
+                <div className="customer-info-box">
+                  <div className="customer-info-name">
+                    {selectedCustomer.code_client ? `${selectedCustomer.code_client} - ${selectedCustomer.name}` : selectedCustomer.name}
+                  </div>
+                  <div className="customer-info-line">Tpin: {selectedCustomer.tpin || '-'}</div>
+                  <div className="customer-info-line">
+                    (Current outstanding bill: {Number(selectedCustomer.outstanding_amount || 0).toFixed(2)} ZMW)
+                  </div>
+                  <div className="customer-info-line">
+                    (Current Advance Amount is {Number(selectedCustomer.advance_amount || 0).toFixed(2)} ZMW)
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -389,7 +503,14 @@ function Invoice() {
                             );
                           })}
                         </div>
-                        <div className="customer-add-new">
+                        <div
+                          className="customer-add-new"
+                          onClick={() => {
+                            setShowProductDropdown(false);
+                            setProductSearch('');
+                            setShowAddProduct(true);
+                          }}
+                        >
                           <FaCircle className="add-new-dot" /> Add New
                         </div>
                       </div>
@@ -654,6 +775,217 @@ function Invoice() {
                 setShowRemoveConfirm(false);
                 setItemToRemove(null);
               }}>Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD PRODUCT MODAL */}
+      {showAddProduct && (
+        <div className="modal-overlay addproduct-overlay" onClick={() => setShowAddProduct(false)}>
+          <div className="addproduct-box" onClick={e => e.stopPropagation()}>
+            <div className="addproduct-header">
+              <h3>Add Products</h3>
+              <button type="button" className="addproduct-close" onClick={() => setShowAddProduct(false)}>✕</button>
+            </div>
+
+            <div className="addproduct-body">
+              <div className="form-row-2">
+                <div className="field">
+                  <label className="label-required">Ref.<span>*</span></label>
+                  <input value={newProduct.ref} onChange={e => updateNewProduct('ref', e.target.value)} />
+                </div>
+                <div className="field">
+                  <label className="label-required">Label<span>*</span></label>
+                  <input value={newProduct.label} onChange={e => updateNewProduct('label', e.target.value)} />
+                </div>
+              </div>
+
+              <div className="form-row-2">
+                <div className="field">
+                  <label className="label-required">Status (Sell)<span>*</span></label>
+                  <select value={newProduct.statusSell} onChange={e => updateNewProduct('statusSell', e.target.value)}>
+                    <option>For sale</option>
+                    <option>Not for sale</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label className="label-required">Status (Purchase)<span>*</span></label>
+                  <select value={newProduct.statusPurchase} onChange={e => updateNewProduct('statusPurchase', e.target.value)}>
+                    <option>For purchase</option>
+                    <option>Not for purchase</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row-2">
+                <div className="field">
+                  <label className="label-required">Product Classification<span>*</span></label>
+                  <input
+                    placeholder="Search Classification Code.."
+                    value={newProduct.classification}
+                    onChange={e => updateNewProduct('classification', e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label className="label-required">Nature of product <span>*</span></label>
+                  <div className="nature-checkboxes">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={newProduct.natureFinished}
+                        onChange={e => updateNewProduct('natureFinished', e.target.checked)}
+                      /> Finished Product
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={newProduct.natureRaw}
+                        onChange={e => updateNewProduct('natureRaw', e.target.checked)}
+                      /> Raw Material
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={newProduct.natureService}
+                        onChange={e => updateNewProduct('natureService', e.target.checked)}
+                      /> Service
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-row-2">
+                <div className="field">
+                  <label className="label-required">Country of origin<span>*</span></label>
+                  <select value={newProduct.countryOrigin} onChange={e => updateNewProduct('countryOrigin', e.target.value)}>
+                    <option>Zambia (ZM)</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Default warehouse</label>
+                  <select value={newProduct.defaultWarehouse} onChange={e => updateNewProduct('defaultWarehouse', e.target.value)}>
+                    <option value="">Select a warehouse</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row-2">
+                <div className="field">
+                  <label>Stock limit for alert</label>
+                  <input type="number" value={newProduct.stockLimit} onChange={e => updateNewProduct('stockLimit', e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Desired Stock</label>
+                  <input type="number" value={newProduct.desiredStock} onChange={e => updateNewProduct('desiredStock', e.target.value)} />
+                </div>
+              </div>
+
+              <div className="form-row-2">
+                <div className="field">
+                  <label className="label-required">Unit<span>*</span></label>
+                  <select value={newProduct.unit} onChange={e => updateNewProduct('unit', e.target.value)}>
+                    <option value="">Unit of Quantity</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label className="label-required">Packaging Unit<span>*</span></label>
+                  <select value={newProduct.packagingUnit} onChange={e => updateNewProduct('packagingUnit', e.target.value)}>
+                    <option value="">Packaging Unit</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row-2">
+                <div className="field">
+                  <label className="label-required">Selling price<span>*</span></label>
+                  <div className="disc-row">
+                    <input type="number" value={newProduct.sellingPrice} onChange={e => updateNewProduct('sellingPrice', e.target.value)} />
+                    <select value={newProduct.sellingPriceTaxType} onChange={e => updateNewProduct('sellingPriceTaxType', e.target.value)}>
+                      <option>Inc. tax</option>
+                      <option>Excl. tax</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Min. selling price</label>
+                  <input type="number" value={newProduct.minSellingPrice} onChange={e => updateNewProduct('minSellingPrice', e.target.value)} />
+                </div>
+              </div>
+
+              <div className="form-row-2">
+                <div className="field">
+                  <label className="label-required">VAT category Code<span>*</span></label>
+                  <select value={newProduct.vatCategoryCode} onChange={e => updateNewProduct('vatCategoryCode', e.target.value)}>
+                    <option>A-16%</option>
+                    <option>B-0%</option>
+                    <option>C-Exempt</option>
+                  </select>
+                </div>
+                <TaxCategoryDropdown
+                  label="IPL category code"
+                  value={newProduct.iplCategoryCode}
+                  onChange={v => updateNewProduct('iplCategoryCode', v)}
+                  options={TAX_CATEGORY_OPTIONS}
+                />
+              </div>
+
+              <div className="form-row-2">
+                <TaxCategoryDropdown
+                  label="Tourism levy Code"
+                  value={newProduct.tourismLevyCode}
+                  onChange={v => updateNewProduct('tourismLevyCode', v)}
+                  options={TAX_CATEGORY_OPTIONS}
+                />
+                <TaxCategoryDropdown
+                  label="Excise tax category code"
+                  value={newProduct.exciseTaxCategoryCode}
+                  onChange={v => updateNewProduct('exciseTaxCategoryCode', v)}
+                  options={TAX_CATEGORY_OPTIONS}
+                />
+              </div>
+
+              <div className="form-row-2">
+                <div className="field">
+                  <label>Manufacture TPIN</label>
+                  <input value={newProduct.manufactureTPIN} onChange={e => updateNewProduct('manufactureTPIN', e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Manufacturer item code</label>
+                  <input value={newProduct.manufacturerItemCode} onChange={e => updateNewProduct('manufacturerItemCode', e.target.value)} />
+                </div>
+              </div>
+
+              <div className="form-row-2">
+                <div className="field">
+                  <label>RRP</label>
+                  <input value={newProduct.rrp} onChange={e => updateNewProduct('rrp', e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Barcode type</label>
+                  <select value={newProduct.barcodeType} onChange={e => updateNewProduct('barcodeType', e.target.value)}>
+                    <option>Code 128</option>
+                    <option>EAN-13</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row-2">
+                <div className="field">
+                  <label>Barcode value</label>
+                  <input value={newProduct.barcodeValue} onChange={e => updateNewProduct('barcodeValue', e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Tags/categories</label>
+                  <input value={newProduct.tags} onChange={e => updateNewProduct('tags', e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            <div className="addproduct-footer">
+              <button type="button" className="btn-create-item" onClick={handleCreateItem}>
+                <FaCheckCircle /> Create Item
+              </button>
             </div>
           </div>
         </div>
